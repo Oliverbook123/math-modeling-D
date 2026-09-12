@@ -1,0 +1,31 @@
+% 问题一：核心公式
+
+\textbf{1. 用频计划的数学表示}
+
+每个用频计划 $P_i$ 可表示为四元组：
+\begin{equation}
+    P_i = ([f_s^{(i)}, f_e^{(i)}),\ [t_s^{(i)}, t_e^{(i)}),\ \delta_i,\ n_i)
+\end{equation}
+其中 $[f_s, f_e)$ 为频段区间，$[t_s, t_e)$ 为首次使用时间区间，$\delta$ 为间隔时长，$n$ 为使用次数。
+
+\textbf{2. 时间实例展开}
+
+计划 $P_i$ 的第 $k$ 次使用时间区间为：
+\begin{equation}
+    T_k^{(i)} = [t_s^{(i)} + k \cdot \delta_i,\ t_e^{(i)} + k \cdot \delta_i), \quad k = 0, 1, \ldots, n_i - 1
+\end{equation}
+
+\textbf{3. 区间交叠判定}
+
+两个区间 $[a, b)$ 与 $[c, d)$ 存在交叠的充要条件为：
+\begin{equation}
+    [a, b) \cap [c, d) \neq \varnothing \iff a < d \land c < b
+\end{equation}
+
+\textbf{4. 时频冲突判定}
+
+计划 $P_i$ 与 $P_j$ 存在时频冲突，当且仅当：
+\begin{equation}
+    \text{Conflict}(P_i, P_j) \iff [f_s^{(i)}, f_e^{(i)}) \cap [f_s^{(j)}, f_e^{(j)}) \neq \varnothing \ \land\ \exists\, k, l:\ T_k^{(i)} \cap T_l^{(j)} \neq \varnothing
+\end{equation}
+即频段交叠且至少一对时间实例交叠。

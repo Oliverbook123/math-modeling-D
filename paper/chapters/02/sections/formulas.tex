@@ -1,0 +1,34 @@
+% 问题二：核心公式
+
+\textbf{1. 调整动作的数学表示}
+
+对于计划 $P_i$，可选动作集合为：
+\begin{equation}
+    \mathcal{A}_i = \{\text{保留}\} \cup \{\text{频段平移} \Delta f : |\Delta f| \leq 10\} \cup \{\text{时间平移} \Delta t : |\Delta t| \leq 5\} \cup \{\text{撤销}\}
+\end{equation}
+其中频段平移须满足 $f_s + \Delta f \geq 0$ 且 $f_e + \Delta f \leq 100$，时间平移须满足 $t_s + \Delta t \geq 0$。
+
+\textbf{2. 模拟退火的能量函数}
+
+能量函数定义为元组字典序比较（与代码 \texttt{energy\_tuple()} 一致）：
+\begin{equation}
+    E = (N_{\text{冲突}},\ N_A^{\text{撤销}},\ N_B^{\text{撤销}},\ N_C^{\text{撤销}},\ N_{\text{调整}},\ S_{\text{总幅度}})
+\end{equation}
+其中 $N_{\text{冲突}}$ 为当前方案中活跃计划间的冲突对数（退火过程中允许非零，最终消毒后为 0），$N_A^{\text{撤销}}$、$N_B^{\text{撤销}}$、$N_C^{\text{撤销}}$ 分别为各类别撤销数，$N_{\text{调整}}$ 为被调整的计划数，$S_{\text{总幅度}}$ 为所有调整的总幅度。
+
+\textbf{3. Metropolis 接受概率}
+
+\begin{equation}
+    P(\text{接受}) = \begin{cases}
+        1 & \text{if } E_{\text{new}} < E_{\text{old}} \\
+        \exp\left(-\frac{\Delta E_{\text{scalar}}}{T}\right) & \text{otherwise}
+    \end{cases}
+\end{equation}
+其中 $T$ 为当前温度，$\Delta E_{\text{scalar}}$ 为能量元组标量化后的差值。
+
+\textbf{4. ILP 目标函数}
+
+\begin{equation}
+    \min \sum_{i} w_i \cdot x_i^{\text{撤销}} + \lambda \sum_{i} |a_i|
+\end{equation}
+其中 $x_i^{\text{撤销}} \in \{0,1\}$ 为撤销决策变量，$w_i$ 为按优先级设置的权重（A 类权重最高），$a_i$ 为调整幅度，$\lambda$ 为调整幅度的惩罚系数。约束条件为消解后无冲突。

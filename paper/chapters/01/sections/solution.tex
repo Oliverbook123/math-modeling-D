@@ -1,0 +1,82 @@
+% 问题一：求解过程
+
+\textbf{数据预处理}
+
+首先将 150 个用频计划解析为结构化对象，并预先计算每个计划的所有时间实例列表：
+\begin{equation}
+    \mathcal{T}_i = \{T_0^{(i)}, T_1^{(i)}, \ldots, T_{n_i-1}^{(i)}\}
+\end{equation}
+预计算避免了后续冲突检测中的重复计算，在多方法对比中尤为重要。
+
+\textbf{算法1：暴力枚举（基准方法）}
+
+\begin{lstlisting}[language=Python, caption=暴力枚举时频冲突检测]
+conflicts = []
+for i in range(150):
+    for j in range(i+1, 150):
+        # Step 1: 频段交叠判断
+        if not (P[i].fs < P[j].fe and P[j].fs < P[i].fe):
+            continue
+        # Step 2: 时间实例交叠判断（使用预计算列表）
+        found = False
+        for Ti in T[i]:
+            if found: break
+            for Tj in T[j]:
+                if Ti[0] < Tj[1] and Tj[0] < Ti[1]:
+                    conflicts.append((P[i].id, P[j].id))
+                    found = True
+                    break
+\end{lstlisting}
+
+\textbf{其他优化方法}
+
+除暴力枚举外，还实现了以下 6 种优化算法进行交叉验证：
+\begin{itemize}
+    \item \textbf{频段排序优化}：按频段起点排序，利用频段交叠的单调性跳过不可能冲突的计划对。
+    \item \textbf{时间排序优化}：按首次时间起点排序，减少时间交叠判断次数。
+    \item \textbf{区间树}：将频段区间构建为区间树，快速查询与给定频段交叠的计划集合。
+    \item \textbf{扫描线}：沿时间轴扫描，维护当前活跃的频段区间集合。
+    \item \textbf{网格索引}：将时频平面划分为网格，只检查同一网格内的计划对。
+    \item \textbf{空间哈希}：将频段区间哈希到桶中，减少不必要的配对检查。
+\end{itemize}
+
+7 种方法的检测结果\textbf{完全一致}（均检测出 237 对冲突），交叉验证确认了结果的正确性。
+
+\textbf{复杂度分析}
+
+\begin{itemize}
+    \item 计划对数：$C_{150}^{2} = 11175$
+    \item 每对最多检查 $12 \times 12 = 144$ 次时间交叠
+    \item 总计算量：$\approx 1.6 \times 10^6$ 次判断，运行时间 $< 1$ 秒
+\end{itemize}
+
+\textbf{检测结果统计}
+
+经 7 种方法交叉验证，共检测出 \textbf{237 对}时频冲突。按装备类别组合统计如表~\ref{tab:conflict_stats} 所示。
+
+\begin{table}[htbp]
+\centering
+\caption{时频冲突按类别组合统计}
+\label{tab:conflict_stats}
+\begin{tabular}{ccc}
+\toprule
+类别组合 & 冲突对数 & 占比 \\
+\midrule
+A-A & 1 & 0.4\% \\
+A-B & 29 & 12.2\% \\
+A-C & 59 & 24.9\% \\
+B-B & 18 & 7.6\% \\
+B-C & 115 & 48.5\% \\
+C-C & 15 & 6.3\% \\
+\midrule
+合计 & 237 & 100\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+从统计结果可以看出：
+\begin{enumerate}
+    \item B-C 类冲突最多（115 对，占 48.5\%），这与 B 类装备频段宽度较大（15$\Delta f$）、C 类装备数量众多（90 个）且使用频繁（12 次）有关。
+    \item A-C 类冲突次之（59 对，占 24.9\%），A 类装备虽然数量少（20 个），但频段宽度（10$\Delta f$）与 C 类装备频繁使用的特点叠加，导致冲突较多。
+    \item A-A 类冲突最少（仅 1 对），说明 A 类装备之间的频段规划较为合理。
+\end{enumerate}
