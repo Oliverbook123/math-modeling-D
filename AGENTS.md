@@ -19,6 +19,7 @@
 │   ├── 02/                # 问题 2 代码
 │   ├── 03/                # 问题 3 代码
 │   ├── 04/                # 问题 4 代码
+│   ├── run_all.py         # 执行所有问题的代码
 │   └── output/
 │       ├── 01/            # 问题 1 输出（result1.xlsx）
 │       ├── 02/            # 问题 2 输出（result2.xlsx）
@@ -267,13 +268,13 @@ code/01/
 
 code/output/01/
 ├── method1_bruteforce/
-│   ├── result.json          # 冲突对列表 + 统计
+│   ├── result.csv           # 冲突对列表（序号, 装备1, 装备2）
 │   └── conflict_chart.png   # 可视化图表
 ├── method2_freqsort/
-│   ├── result.json
+│   ├── result.csv
 │   └── conflict_chart.png
 ├── method3_timesort/
-│   ├── result.json
+│   ├── result.csv
 │   └── conflict_chart.png
 ├── result1.xlsx             # 最终结果（模板对齐）
 └── summary.json             # 汇总：各方法冲突数、耗时、一致性
@@ -282,7 +283,7 @@ code/output/01/
 ### 代码规范
 
 1. **完整中文注释**：每个函数、每个逻辑块都要有中文注释
-2. **输出 JSON**：每个方法的 result.json 包含冲突对列表和统计信息
+2. **输出 CSV**：每个方法的 result.csv 包含冲突对列表（序号、装备1、装备2），UTF-8 with BOM 编码；统计信息汇总在 summary.json
 3. **输出图表**：每个方法生成 matplotlib 可视化图表
 4. **汇总文件**：summary.json 对比各方法的结果一致性和性能
 

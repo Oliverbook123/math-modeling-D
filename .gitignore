@@ -36,3 +36,6 @@ code/output/**/*.xlsx
 
 # Logs
 *.log
+
+docs/
+paper/.git/

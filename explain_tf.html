@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>时频冲突图解</title>
+<style>
+  :root {
+    --fg: var(--foreground, #e0e0e0);
+    --muted: var(--muted-foreground, #999);
+    --accent: var(--accent, #5b9bd5);
+    --border: var(--border, #333);
+    --card: var(--card, #1a1a1a);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; color: var(--fg); padding: 20px; background: transparent; }
+  h1 { font-size: 18px; margin-bottom: 6px; }
+  h2 { font-size: 15px; margin: 18px 0 8px; color: var(--accent); }
+  .desc { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+  .canvas-wrap { position: relative; margin: 10px 0 20px; }
+  canvas { display: block; border: 1px solid var(--border); border-radius: 6px; background: #111; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; margin-top: 8px; }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+  .formula { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin: 10px 0; font-size: 14px; line-height: 1.8; }
+  .scene-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .scene-tabs button {
+    padding: 5px 14px; font-size: 12px; border: 1px solid var(--border);
+    background: var(--card); color: var(--fg); border-radius: 4px; cursor: pointer;
+  }
+  .scene-tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>时频冲突图解</h1>
+<p class="desc">横轴是时间，纵轴是频段。每个用频计划在时频平面上是一个或多个矩形。</p>
+
+<div class="scene-tabs">
+  <button class="active" onclick="setScene(0)">单个计划展开</button>
+  <button onclick="setScene(1)">两个计划：不冲突</button>
+  <button onclick="setScene(2)">两个计划：冲突！</button>
+</div>
+
+<div class="canvas-wrap">
+  <canvas id="c" width="720" height="420"></canvas>
+</div>
+<div class="legend" id="legend"></div>
+
+<h2>关键公式</h2>
+<div class="formula">
+  <b>区间交叠判定</b>：[a, b) 与 [c, d) 有交叠 ⟺ <b>a &lt; d</b> 且 <b>c &lt; b</b><br><br>
+  <b>冲突判定</b>：计划 i 与 j 冲突 ⟺ 频段交叠 <b>且</b> 至少一对时间实例交叠
+</div>
+
+<script>
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+const W = c.width, H = c.height;
+const PAD = { l: 60, r: 20, t: 40, b: 50 };
+const PW = W - PAD.l - PAD.r;
+const PH = H - PAD.t - PAD.b;
+
+let scene = 0;
+const colors = {
+  a: 'rgba(91,155,213,0.45)',
+  b: 'rgba(237,125,49,0.45)',
+  conflict: 'rgba(255,60,60,0.55)',
+  grid: '#222',
+  axis: '#666',
+  text: '#ccc',
+  label: '#aaa',
+};
+
+function freq2y(f) { return PAD.t + PH * (1 - f / 100); }
+function time2x(t) { return PAD.l + PW * (t / 200); }
+
+function drawGrid() {
+  ctx.strokeStyle = colors.grid;
+  ctx.lineWidth = 0.5;
+  for (let f = 0; f <= 100; f += 10) {
+    const y = freq2y(f);
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke();
+  }
+  for (let t = 0; t <= 200; t += 20) {
+    const x = time2x(t);
+    ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, H - PAD.b); ctx.stroke();
+  }
+  // axes
+  ctx.strokeStyle = colors.axis; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PAD.l, PAD.t); ctx.lineTo(PAD.l, H - PAD.b); ctx.lineTo(W - PAD.r, H - PAD.b); ctx.stroke();
+
+  // labels
+  ctx.fillStyle = colors.label; ctx.font = '11px system-ui';
+  ctx.textAlign = 'center';
+  for (let t = 0; t <= 200; t += 40) ctx.fillText(t + 'Δt', time2x(t), H - PAD.b + 16);
+  ctx.textAlign = 'right';
+  for (let f = 0; f <= 100; f += 20) ctx.fillText('频段' + f, PAD.l - 6, freq2y(f) + 4);
+
+  // axis titles
+  ctx.fillStyle = colors.text; ctx.font = '12px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('时间 →', PAD.l + PW / 2, H - 6);
+  ctx.save();
+  ctx.translate(14, PAD.t + PH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('频段 →', 0, 0);
+  ctx.restore();
+}
+
+function drawRect(x1, x2, y1, y2, fill, stroke, label) {
+  ctx.fillStyle = fill;
+  ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+  if (stroke) {
+    ctx.strokeStyle = stroke; ctx.lineWidth = 1.5;
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+  }
+  if (label) {
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
+    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+    ctx.fillText(label, cx, cy + 4);
+  }
+}
+
+function drawPlan(freqS, freqE, timeS, timeE, fill, stroke, label) {
+  const x1 = time2x(timeS), x2 = time2x(timeE);
+  const y1 = freq2y(freqE), y2 = freq2y(freqS);
+  drawRect(x1, x2, y1, y2, fill, stroke, label);
+}
+
+function clear() {
+  ctx.clearRect(0, 0, W, H);
+  drawGrid();
+}
+
+// Scene 0: single plan expanded
+function scene0() {
+  clear();
+  // A001: freq [80,90), time first [35,40), interval=60, count=3
+  const instances = [
+    { s: 35, e: 40, label: '第1次' },
+    { s: 95, e: 100, label: '第2次' },
+    { s: 155, e: 160, label: '第3次' },
+  ];
+  instances.forEach(inst => {
+    drawPlan(80, 90, inst.s, inst.e, colors.a, '#5b9bd5', inst.label);
+  });
+
+  // annotation
+  ctx.fillStyle = colors.text; ctx.font = '12px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('A001: 频段[80,90), 首次时间[35,40), 间隔60, 次数3', PAD.l, PAD.t - 12);
+
+  // show interval arrows
+  ctx.strokeStyle = '#5b9bd5'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+  const y = freq2y(85);
+  ctx.beginPath(); ctx.moveTo(time2x(40), y); ctx.lineTo(time2x(95), y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(time2x(100), y); ctx.lineTo(time2x(155), y); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#5b9bd5'; ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('间隔60Δt', time2x(67.5), y - 6);
+  ctx.fillText('间隔60Δt', time2x(127.5), y - 6);
+
+  document.getElementById('legend').innerHTML =
+    '<span><i style="background:rgba(91,155,213,0.6)"></i> A001 的 3 个时间实例</span>';
+}
+
+// Scene 1: two plans, no conflict
+function scene1() {
+  clear();
+  // A001: freq [80,90), time [35,40) * 3
+  // B005: freq [80,95), time [0,3) * 4 (interval=40)
+  drawPlan(80, 90, 35, 40, colors.a, '#5b9bd5', '');
+  drawPlan(80, 90, 95, 100, colors.a, '#5b9bd5', '');
+  drawPlan(80, 90, 155, 160, colors.a, '#5b9bd5', '');
+
+  // B005: freq [80,95), time instances [0,3), [40,43), [80,83), [120,123)
+  drawPlan(80, 95, 0, 3, colors.b, '#ed7d31', '');
+  drawPlan(80, 95, 40, 43, colors.b, '#ed7d31', '');
+  drawPlan(80, 95, 80, 83, colors.b, '#ed7d31', '');
+  drawPlan(80, 95, 120, 123, colors.b, '#ed7d31', '');
+
+  ctx.fillStyle = colors.text; ctx.font = '12px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('A001: 频段[80,90), 时间[35,40)×3  (蓝)', PAD.l, PAD.t - 22);
+  ctx.fillText('B005: 频段[80,95), 时间[0,3)×4  (橙)  ← 频段重叠但时间不重叠 → 不冲突', PAD.l, PAD.t - 8);
+
+  document.getElementById('legend').innerHTML =
+    '<span><i style="background:rgba(91,155,213,0.6)"></i> A001</span>' +
+    '<span><i style="background:rgba(237,125,49,0.6)"></i> B005</span>' +
+    '<span style="color:#6f6">✓ 不冲突：频段有重叠，但时间没有交叠</span>';
+}
+
+// Scene 2: two plans, conflict!
+function scene2() {
+  clear();
+  // A001: freq [80,90), time [35,40) * 3
+  // A006: freq [40,50), time [0,5) * 3, interval=60  → no freq overlap with A001
+
+  // Let's use two that DO conflict:
+  // A001: freq [80,90), time instances [35,40), [95,100), [155,160)
+  // Suppose C020: freq [85,88), time instances [37,39) * 12 interval=8
+  drawPlan(80, 90, 35, 40, colors.a, '#5b9bd5', '');
+  drawPlan(80, 90, 95, 100, colors.a, '#5b9bd5', '');
+  drawPlan(80, 90, 155, 160, colors.a, '#5b9bd5', '');
+
+  // C020: freq [85,88), many instances
+  for (let k = 0; k < 12; k++) {
+    const ts = 37 + k * 8, te = 39 + k * 8;
+    drawPlan(85, 88, ts, te, colors.b, '#ed7d31', '');
+  }
+
+  // highlight conflict zone: freq [85,90)∩[85,88)=[85,88), time [35,40)∩[37,39)=[37,39)
+  const cx1 = time2x(37), cx2 = time2x(39);
+  const cy1 = freq2y(88), cy2 = freq2y(85);
+  drawRect(cx1, cx2, cy1, cy2, colors.conflict, '#ff3c3c', '');
+
+  ctx.fillStyle = colors.text; ctx.font = '12px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('A001: 频段[80,90), 时间[35,40)×3  (蓝)', PAD.l, PAD.t - 22);
+  ctx.fillText('C020: 频段[85,88), 时间[37,39)×12 (橙)  ← 频段重叠 且 时间重叠 → 冲突!', PAD.l, PAD.t - 8);
+
+  // conflict annotation arrow
+  ctx.strokeStyle = '#ff3c3c'; ctx.lineWidth = 1;
+  const ax = (cx1 + cx2) / 2, ay = (cy1 + cy2) / 2;
+  ctx.beginPath(); ctx.moveTo(ax + 60, ay - 40); ctx.lineTo(ax + 10, ay - 5); ctx.stroke();
+  ctx.fillStyle = '#ff3c3c'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('冲突区域', ax + 62, ay - 42);
+  ctx.fillText('频段[85,88) ∩ 时间[37,39)', ax + 62, ay - 28);
+
+  document.getElementById('legend').innerHTML =
+    '<span><i style="background:rgba(91,155,213,0.6)"></i> A001</span>' +
+    '<span><i style="background:rgba(237,125,49,0.6)"></i> C020</span>' +
+    '<span><i style="background:rgba(255,60,60,0.7)"></i> 冲突区域</span>';
+}
+
+const scenes = [scene0, scene1, scene2];
+function setScene(i) {
+  scene = i;
+  document.querySelectorAll('.scene-tabs button').forEach((b, j) => b.classList.toggle('active', j === i));
+  scenes[i]();
+}
+setScene(0);
+</script>
+</body>
+</html>
