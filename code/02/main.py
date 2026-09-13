@@ -53,6 +53,7 @@ METHODS = [
         "script": "code/02/method2_ilp/ilp.py",
         "output_dir": "code/output/02/method2_ilp",
         "xlsx_name": "result2_ilp.xlsx",
+        "deps": ["pulp"],
     },
     {
         "key": "greedy_ls",
@@ -102,11 +103,15 @@ def run_method(method_config):
             "error": f"脚本不存在: {script_path}",
         }
     
-    # 运行脚本（使用 uv）
+    # 运行脚本（使用 uv；ILP 等方法需要额外依赖，通过 deps 字段注入）
     start_time = time.time()
+    cmd = ["uv", "run", "--with", "openpyxl"]
+    for dep in method_config.get("deps", []):
+        cmd += ["--with", dep]
+    cmd += ["python", script_path]
     try:
         result = subprocess.run(
-            ["uv", "run", "--with", "openpyxl", "python", script_path],
+            cmd,
             cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
