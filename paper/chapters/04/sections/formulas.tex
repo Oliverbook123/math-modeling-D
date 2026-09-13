@@ -1,2 +1,52 @@
 % 问题四：核心公式
-%TODO: 补充内容
+
+\textbf{1. 调整动作的数学表示}
+
+对于计划 $P_i$，可选动作集合为：
+\begin{equation}
+    \mathcal{A}_i = \{\text{保留}\} \cup \{\text{频段平移} \Delta f : |\Delta f| \leq 10\} \cup \{\text{时间平移} \Delta t : |\Delta t| \leq 5\} \cup \mathcal{I}_i \cup \{\text{撤销}\}
+\end{equation}
+
+其中 $\mathcal{I}_i$ 为间隔调整动作集合（仅 C 类装备非空）：
+\begin{equation}
+    \mathcal{I}_i = \begin{cases}
+        \{\Delta \delta : |\Delta \delta| \leq 10,\ \delta_i + \Delta \delta \geq w_i\} & \text{if } P_i \text{ 为 C 类} \\
+        \emptyset & \text{otherwise}
+    \end{cases}
+\end{equation}
+其中 $\delta_i$ 为原间隔时长（$8\Delta t$），$w_i$ 为单次使用时长（$2\Delta t$），约束 $\delta_i + \Delta \delta \geq w_i$ 确保调整后的 12 个时间实例不会互相重叠。
+
+\textbf{2. 间隔调整后的时间实例}
+
+C 类装备 $P_i$ 调整间隔后，其时间实例为：
+\begin{equation}
+    T_k = [t_s + \Delta t + k(\delta_i + \Delta \delta),\ t_s + \Delta t + k(\delta_i + \Delta \delta) + w_i),\quad k = 0, 1, \ldots, 11
+\end{equation}
+其中 $\Delta t$ 为时间平移量（间隔调整时 $\Delta t = 0$），$\Delta \delta$ 为间隔调整量。
+
+\textbf{3. 能量函数}
+
+能量函数定义为元组字典序比较：
+\begin{equation}
+    E = (N_{\text{撤销}},\ N_A^{\text{撤销}},\ N_B^{\text{撤销}},\ N_C^{\text{撤销}},\ N_{\text{调整}},\ S_{\text{总幅度}})
+\end{equation}
+其中 $S_{\text{总幅度}} = \sum_{i: \text{调整}} (|\Delta f_i| + |\Delta t_i| + |\Delta \delta_i|)$。
+
+\textbf{4. ILP 建模}
+
+设计划 $P_i$ 的动作候选集为 $\mathcal{A}_i$，定义 0-1 决策变量 $x_{i,a}$ 表示计划 $P_i$ 是否选择动作 $a \in \mathcal{A}_i$。
+
+\textbf{目标函数}：
+\begin{equation}
+    \min \sum_{i} w_i \cdot x_{i,\text{撤销}} + \lambda \sum_{i} \sum_{a \in \mathcal{A}_i \setminus \{\text{保留, 撤销}\}} |a| \cdot x_{i,a}
+\end{equation}
+其中 $w_i$ 为按优先级设置的权重（A 类权重最高），$|a|$ 为动作的调整幅度，$\lambda$ 为调整幅度的惩罚系数。
+
+\textbf{约束条件}：
+\begin{enumerate}
+    \item 每个计划恰好选择一个动作：$\sum_{a \in \mathcal{A}_i} x_{i,a} = 1,\ \forall i$
+    \item 消解后无冲突：对任意两个活跃计划 $P_i, P_j$，若存在冲突，则不能同时保留
+    \item 频段范围约束：$f_s + \Delta f \in [0, 100)$
+    \item 时间非负约束：$t_s + \Delta t \geq 0$
+    \item 间隔下界约束（C 类）：$\delta + \Delta \delta \geq 2$
+\end{enumerate}
