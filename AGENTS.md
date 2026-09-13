@@ -14,17 +14,25 @@
 ├── D题.md                 # 题目原文（markdown 版）
 ├── D题.pdf                # 题目原文（pdf 原件）
 ├── IDEA.md                # 解题思路与论文大纲
+├── explain_tf.html        # 时频冲突可视化说明
 ├── code/
-│   ├── 01/                # 问题 1 代码
-│   ├── 02/                # 问题 2 代码
-│   ├── 03/                # 问题 3 代码
-│   ├── 04/                # 问题 4 代码
-│   ├── run_all.py         # 执行所有问题的代码
+│   ├── 01/                # 问题 1 代码（7种方法）
+│   ├── 02/                # 问题 2 代码（4种方法）
+│   ├── 03/                # 问题 3 代码（3种方法）
+│   ├── 04/                # 问题 4 代码（4种方法）
 │   └── output/
 │       ├── 01/            # 问题 1 输出（result1.xlsx）
 │       ├── 02/            # 问题 2 输出（result2.xlsx）
 │       ├── 03/            # 问题 3 输出（result3.xlsx）
 │       └── 04/            # 问题 4 输出（result4.xlsx）
+├── paper/                 # LaTeX 论文
+│   ├── MathModel.tex      # 主文件
+│   ├── chapters/          # 各章节
+│   │   ├── 01/            # 问题 1
+│   │   ├── 02/            # 问题 2
+│   │   ├── 03/            # 问题 3
+│   │   └── 04/            # 问题 4
+│   └── output/            # 编译输出
 └── 附件/
     ├── 附件1.xlsx          # 原始数据：150 个装备用频计划
     └── 附件2/              # 结果模板
@@ -248,12 +256,15 @@ uv run python code/01/main.py
 
 ### 问题 1 代码结构
 
-`code/01/` 下按方法分子目录，每种方法独立：
+`code/01/` 下按方法分子目录，每种方法独立。共实现 **7 种**冲突检测算法：
 
 ```
 code/01/
 ├── main.py                  # 主入口：依次运行所有方法，汇总结果
-├── method1_bruteforce/      # 方法 1：暴力枚举
+├── common/                  # 公共模块（数据加载、Plan 类等）
+│   ├── __init__.py
+│   └── data_loader.py
+├── method1_bruteforce/      # 方法 1：暴力枚举（基准）
 │   ├── __init__.py
 │   └── bruteforce.py
 ├── method2_freqsort/        # 方法 2：频段排序优化
@@ -262,22 +273,33 @@ code/01/
 ├── method3_timesort/        # 方法 3：时间排序优化
 │   ├── __init__.py
 │   └── timesort.py
-└── common/                  # 公共模块（数据加载、Plan 类等）
+├── method4_interval_tree/   # 方法 4：区间树法
+│   ├── __init__.py
+│   └── interval_tree.py
+├── method5_sweep_line/      # 方法 5：扫描线法
+│   ├── __init__.py
+│   └── sweep_line.py
+├── method6_grid_index/      # 方法 6：网格索引法
+│   ├── __init__.py
+│   └── grid_index.py
+└── method7_spatial_hash/    # 方法 7：空间哈希法
     ├── __init__.py
-    └── data_loader.py
+    └── spatial_hash.py
 
 code/output/01/
-├── method1_bruteforce/
+├── method1_bruteforce/      # 每个方法独立输出
 │   ├── result.csv           # 冲突对列表（序号, 装备1, 装备2）
 │   └── conflict_chart.png   # 可视化图表
 ├── method2_freqsort/
-│   ├── result.csv
-│   └── conflict_chart.png
 ├── method3_timesort/
-│   ├── result.csv
-│   └── conflict_chart.png
-├── result1.xlsx             # 最终结果（模板对齐）
-└── summary.json             # 汇总：各方法冲突数、耗时、一致性
+├── method4_interval_tree/
+├── method5_sweep_line/
+├── method6_grid_index/
+├── method7_spatial_hash/
+├── result1.xlsx             # 最终结果（模板对齐，采用暴力枚举结果）
+├── summary.json             # 汇总：各方法冲突数、耗时、一致性
+├── method_comparison.png    # 方法对比图表
+└── all_methods_comparison.png
 ```
 
 ### 代码规范
@@ -291,18 +313,53 @@ code/output/01/
 
 ## 实现计划
 
-| 步骤 | 内容 | 文件 |
-|------|------|------|
-| 1 | 读取附件 1，解析为 Plan 列表 | `code/01/common/data_loader.py` |
-| 2 | 问题 1 方法 1：暴力枚举冲突检测 | `code/01/method1_bruteforce/bruteforce.py` |
-| 3 | 问题 1 方法 2：频段排序优化 | `code/01/method2_freqsort/freqsort.py` |
-| 4 | 问题 1 方法 3：时间排序优化 | `code/01/method3_timesort/timesort.py` |
-| 5 | 问题 1 主入口 + 汇总 | `code/01/main.py → code/output/01/` |
-| 6 | 问题 2：贪心消解 | `code/02/main.py → code/output/02/result2.xlsx` |
-| 7 | 问题 3：C 类扩容 | `code/03/main.py → code/output/03/result3.xlsx` |
-| 8 | 问题 4：放宽间隔约束消解 | `code/04/main.py → code/output/04/result4.xlsx` |
+| 步骤 | 内容 | 文件 | 状态 |
+|------|------|------|------|
+| 1 | 读取附件 1，解析为 Plan 列表 | `code/01/common/data_loader.py` | ✅ 完成 |
+| 2 | 问题 1 方法 1：暴力枚举冲突检测 | `code/01/method1_bruteforce/bruteforce.py` | ✅ 完成 |
+| 3 | 问题 1 方法 2：频段排序优化 | `code/01/method2_freqsort/freqsort.py` | ✅ 完成 |
+| 4 | 问题 1 方法 3：时间排序优化 | `code/01/method3_timesort/timesort.py` | ✅ 完成 |
+| 5 | 问题 1 方法 4：区间树法 | `code/01/method4_interval_tree/interval_tree.py` | ✅ 完成 |
+| 6 | 问题 1 方法 5：扫描线法 | `code/01/method5_sweep_line/sweep_line.py` | ✅ 完成 |
+| 7 | 问题 1 方法 6：网格索引法 | `code/01/method6_grid_index/grid_index.py` | ✅ 完成 |
+| 8 | 问题 1 方法 7：空间哈希法 | `code/01/method7_spatial_hash/spatial_hash.py` | ✅ 完成 |
+| 9 | 问题 1 主入口 + 汇总 | `code/01/main.py → code/output/01/` | ✅ 完成 |
+| 10 | 问题 2 方法 1：贪心+优先级 | `code/02/method1_greedy/greedy.py` | ✅ 代码完成 |
+| 11 | 问题 2 方法 2：整数规划ILP | `code/02/method2_ilp/ilp.py` | ✅ 代码完成 |
+| 12 | 问题 2 方法 3：贪心+局部搜索 | `code/02/method3_greedy_ls/greedy_ls.py` | ✅ 代码完成 |
+| 13 | 问题 2 方法 4：模拟退火 | `code/02/method4_sa/sa.py` | ✅ 代码完成 |
+| 14 | 问题 2 主入口 | `code/02/main.py → code/output/02/result2.xlsx` | ⏳ 待运行 |
+| 15 | 问题 3 方法 1：贪心枚举 | `code/03/method1_greedy/greedy.py` | ✅ 代码完成 |
+| 16 | 问题 3 方法 2：空闲格子扫描 | `code/03/method2_sweep/sweep.py` | ✅ 代码完成 |
+| 17 | 问题 3 方法 3：整数线性规划ILP | `code/03/method3_ilp/ilp.py` | ✅ 代码完成 |
+| 18 | 问题 3 主入口 | `code/03/main.py → code/output/03/result3.xlsx` | ⏳ 待运行 |
+| 19 | 问题 4 方法 1：贪心+间隔维度 | `code/04/method1_greedy/greedy.py` | ✅ 代码完成 |
+| 20 | 问题 4 方法 2：模拟退火+间隔维度 | `code/04/method2_sa/sa.py` | ✅ 代码完成 |
+| 21 | 问题 4 方法 3：贪心+局部搜索+间隔维度 | `code/04/method3_greedy_ls/greedy_ls.py` | ✅ 代码完成 |
+| 22 | 问题 4 方法 4：整数规划ILP+间隔动作 | `code/04/method4_ilp/ilp.py` | ✅ 代码完成 |
+| 23 | 问题 4 主入口 | `code/04/main.py → code/output/04/result4.xlsx` | ⏳ 待运行 |
 
-依赖：`openpyxl`（读写 xlsx）、`matplotlib`（可视化图表）、`scikit-learn`（聚类等优化算法）
+### 依赖
+
+- `openpyxl`：读写 xlsx
+- `matplotlib`：可视化图表
+- `pulp`：整数线性规划（问题 2/3/4 的 ILP 方法）
+
+### 运行命令
+
+```bash
+# 问题 1（已完成）
+uv run python code/01/main.py
+
+# 问题 2
+UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple/" uv run --with openpyxl python code/02/main.py
+
+# 问题 3
+UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple/" uv run --with openpyxl --with pulp python code/03/main.py
+
+# 问题 4
+UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple/" uv run --with openpyxl --with matplotlib --with pulp python code/04/main.py
+```
 
 ---
 
@@ -314,3 +371,45 @@ code/output/01/
 2. **问题 2–4**：对最终方案重新运行冲突检测，确认 0 冲突
 3. **问题 2**：统计表 1（A/B/C 各类保留/调整/撤销数量）
 4. **问题 3**：确认新增装备数最大（可对比上下界）
+
+---
+
+## 已有运行结果
+
+### 问题 1：时频冲突检测
+
+**状态**：✅ 已完成，7 种方法结果完全一致
+
+| 方法 | 冲突对数 | 耗时 |
+|------|----------|------|
+| 暴力枚举 (bruteforce) | 237 | 0.0021s |
+| 频段排序 (freqsort) | 237 | 0.0020s |
+| 时间排序 (timesort) | 237 | 0.0006s |
+| 区间树 (interval_tree) | 237 | 0.0026s |
+| 扫描线 (sweep_line) | 237 | 0.0011s |
+| 网格索引 (grid_index) | 237 | 0.0065s |
+| 空间哈希 (spatial_hash) | 237 | 0.0069s |
+
+**冲突类别分布**：
+- A-B：29 对
+- A-C：59 对
+- A-A：1 对
+- B-B：18 对
+- B-C：115 对
+- C-C：15 对
+
+**输出文件**：
+- `code/output/01/result1.xlsx`：与模板对齐的最终结果
+- `code/output/01/summary.json`：各方法汇总对比
+- `code/output/01/method*_*/result.csv`：各方法冲突对列表
+- `code/output/01/method*_*/conflict_chart.png`：各方法可视化图表
+
+### 问题 2–4
+
+**状态**：代码已完成，待运行
+
+```bash
+# 运行问题 2
+cd /Users/oliver_book/Documents/pro_doc/数学建模实验D题
+UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple/" uv run --with openpyxl python code/02/main.py
+```

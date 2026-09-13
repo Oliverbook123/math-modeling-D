@@ -1,2 +1,49 @@
 % 问题三：核心公式
-%TODO: 补充内容
+
+\textbf{1. C 类装备的占用格子集合}
+
+对于起始位置 $(f_0, t_0)$ 的 C 类装备，其占用的时频格子集合为：
+\begin{equation}
+    \mathcal{G}(f_0, t_0) = \{(f, t) \mid f_0 \leq f < f_0 + 3,\ t_0 + 8k \leq t < t_0 + 8k + 2,\ k = 0, 1, \ldots, 11\}
+\end{equation}
+共占用 $3 \times 2 \times 12 = 72$ 个格子。
+
+\textbf{2. 冲突判定条件}
+
+两个计划 $P_1$ 和 $P_2$ 冲突当且仅当频段有交叠且时间实例有交叠：
+\begin{equation}
+    \text{conflict}(P_1, P_2) = \begin{cases}
+        1 & \text{if } f_1^s < f_2^e \land f_2^s < f_1^e \land \exists (t_1, t_2): t_1^s < t_2^e \land t_2^s < t_1^e \\
+        0 & \text{otherwise}
+    \end{cases}
+\end{equation}
+其中 $f^s, f^e$ 为频段起止点，$t^s, t^e$ 为时间实例起止点（左闭右开）。
+
+\textbf{3. 可行候选位置筛选}
+
+C 类装备的频段起点范围为 $f_0 \in [0, 97]$（因为 $f_0 + 3 \leq 100$），时间起点范围为 $t_0 \in [0, T_{\max} - 89]$（因为最后一次使用结束时间为 $t_0 + 8 \times 11 + 2 = t_0 + 90$）。
+
+一个候选位置 $(f_0, t_0)$ 可行当且仅当：
+\begin{equation}
+    \forall (f, t) \in \mathcal{G}(f_0, t_0): (f, t) \notin \mathcal{O}
+\end{equation}
+其中 $\mathcal{O}$ 为已有活跃计划的占用格子集合。
+
+\textbf{4. ILP 建模}
+
+设候选位置集合为 $\{(f_i, t_i)\}_{i=1}^n$，定义 0-1 决策变量 $x_i$ 表示是否选择第 $i$ 个位置。冲突位置对集合为 $\mathcal{C} = \{(i, j) \mid \text{conflict}(P_i, P_j) = 1\}$。
+
+\textbf{目标函数}：
+\begin{equation}
+    \max \sum_{i=1}^{n} x_i
+\end{equation}
+
+\textbf{约束条件}：
+\begin{equation}
+    x_i + x_j \leq 1, \quad \forall (i, j) \in \mathcal{C}
+\end{equation}
+\begin{equation}
+    x_i \in \{0, 1\}, \quad i = 1, 2, \ldots, n
+\end{equation}
+
+这是一个\textbf{最大独立集问题}，属于 NP-hard 问题，但本题规模较小（1747 个候选位置，47565 个冲突对），CBC 求解器可在 100 秒内求得全局最优解。
