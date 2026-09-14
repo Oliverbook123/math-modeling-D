@@ -40,3 +40,4 @@ code/output/**/*.xlsx
 docs/
 
 .zcode/
+.workbuddy/
