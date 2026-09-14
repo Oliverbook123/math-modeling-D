@@ -21,6 +21,11 @@
   \fancyfoot[LE]{\thepage}%
 }
 
+% 图/表标题统一：字号五号＋黑体加粗（SimSun 无粗体字形，故用黑体实现加粗效果）
+\DeclareCaptionFont{tablefont}{\heiti\zihao{5}}
+\captionsetup[table]{font={tablefont}}
+\captionsetup[figure]{font={tablefont}}
+
 \title{D 题 时频冲突检测与消解}
 \author{董御书}
 
